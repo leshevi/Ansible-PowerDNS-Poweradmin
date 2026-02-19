@@ -1,0 +1,85 @@
+---
+- name: Create PowerDNS database (MySQL)
+  community.mysql.mysql_db:
+    name: "{{ powerdns_db_name }}"
+    encoding: utf8
+    collation: utf8_bin
+  when: powerdns_backend == 'mysql'
+
+- name: Create PowerDNS database user (MySQL)
+  community.mysql.mysql_user:
+    name: "{{ powerdns_db_user }}"
+    password: "{{ powerdns_db_password }}"
+    priv: "{{ powerdns_db_name }}.*:ALL"
+    host: localhost
+  when: powerdns_backend == 'mysql'
+
+- name: Import PowerDNS MySQL schema
+  ansible.builtin.command: >
+    mysql -u{{ powerdns_db_user }} -p{{ powerdns_db_password }} {{ powerdns_db_name }}
+    < /usr/share/pdns-backend-mysql/schema.mysql.sql
+  when: powerdns_backend == 'mysql'
+  changed_when: false
+
+- name: Create PowerDNS database user (PostgreSQL)
+  community.postgresql.postgresql_user:
+    name: "{{ powerdns_db_user }}"
+    password: "{{ powerdns_db_password }}"
+    state: present
+  become: true
+  become_user: "postgres"
+  vars:
+    ansible_ssh_pipelining: true
+  when: powerdns_backend == 'pgsql'
+
+- name: Create PowerDNS database (PostgreSQL)
+  community.postgresql.postgresql_db:
+    name: "{{ powerdns_db_name }}"
+    encoding: UTF8
+    template: template0
+    owner: "{{ powerdns_db_user }}"
+  become: true
+  become_user: "postgres"
+  # See: https://github.com/ansible/ansible/issues/16048#issuecomment-229012509
+  vars:
+    ansible_ssh_pipelining: true
+  when: powerdns_backend == 'pgsql'
+
+- name: Replace string in pg_hba.conf
+  ansible.builtin.lineinfile:
+    path: /etc/postgresql/15/main/pg_hba.conf
+    regexp: 'local   all             all                                     peer'
+    line: 'local   all             all                                     md5'
+  when: powerdns_backend == 'pgsql'
+
+- name: Restart postgresql
+  ansible.builtin.service:
+    name: postgresql
+    state: restarted
+  when: powerdns_backend == 'pgsql'
+
+- name: Import PowerDNS PostgreSQL schema
+  ansible.builtin.shell: |
+    psql -U {{ powerdns_db_user }} -d {{ powerdns_db_name }} \
+      < /usr/share/pdns-backend-pgsql/schema/schema.pgsql.sql
+  environment:
+    PGPASSWORD: "{{ powerdns_db_password }}"
+  when: powerdns_backend == 'pgsql'
+  changed_when: false
+  vars:
+    ansible_ssh_pipelining: true
+
+- name: Initialize SQLite database
+  ansible.builtin.command: |
+    sqlite3 /var/lib/powerdns/pdns.sqlite3 \
+      < /usr/share/pdns-backend-sqlite3/schema.sqlite3.sql
+  when: powerdns_backend == 'sqlite3'
+  changed_when: false
+
+- name: Set SQLite database permissions
+  ansible.builtin.file:
+    path: /var/lib/powerdns/pdns.sqlite3
+    owner: pdns
+    group: pdns
+    mode: '0640'
+  when: powerdns_backend == 'sqlite3'
