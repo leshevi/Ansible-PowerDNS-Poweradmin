@@ -1,0 +1,58 @@
+--
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - gnupg
+      - wget
+      - curl
+      - acl
+      - python3-psycopg2
+      - libpq-dev
+      - build-essential
+    state: present
+
+- name: Install PowerDNS Authoritative Server
+  ansible.builtin.apt:
+    name:
+      - pdns-server={{ powerdns_version }}
+      - pdns-backend-pgsql
+    state: present
+
+- name: Install database backend dependencies
+  ansible.builtin.apt:
+    name: "{{ powerdns_backend_packages[item] }}"
+    state: present
+  with_items: "{{ powerdns_backend }}"
+
+- name: Configure PowerDNS
+  ansible.builtin.template:
+    src: pdns.conf.j2
+    dest: /etc/powerdns/pdns.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart pdns
+
+- name: Setup database (for SQL backends)
+  ansible.builtin.include_tasks: setup_database.yml
+  when: powerdns_backend in ['mysql', 'pgsql', 'sqlite3']
+
+- name: Start and enable PowerDNS service
+  ansible.builtin.service:
+    name: pdns
+    state: started
+    enabled: true
+
+- name: Allow HTTP and HTTPS in firewall
+  community.general.ufw:
+    rule: allow
+    port: "53"
+    proto: "{{ item }}"
+  loop:
+    - "tcp"
+    - "udp"
