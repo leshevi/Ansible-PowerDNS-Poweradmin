@@ -126,7 +126,7 @@ image: $DEPENDENCY_IMAGE
       cat hosts.yml
 
       echo "Running playbook..."
-      ansible-playbook -i hosts.yml playbooks/powerdns-install.yml \
+      ansible-playbook -i hosts.yml playbook.yml \
       -e "powerdns_backend=pgsql" \
       -e "powerdns_master=true"
   rules:
