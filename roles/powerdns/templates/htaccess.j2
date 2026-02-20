@@ -21,7 +21,7 @@ Options -Indexes
     RewriteEngine On
     
     # Redirect to HTTPS if enabled
-    {% if poweradmin_enable_https %}
+    {% if powerdns_enable_https %}
     RewriteCond %{HTTPS} off
     RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
     {% endif %}
@@ -42,7 +42,7 @@ Options -Indexes
 {% if poweradmin_allowed_networks | length > 0 %}
 Order Deny,Allow
 Deny from all
-{% for network in poweradmin_allowed_networks %}
+{% for network in powerdns_allowed_networks %}
 Allow from {{ network }}
 {% endfor %}
 {% endif %}

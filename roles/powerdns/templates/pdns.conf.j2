@@ -1,0 +1,61 @@
+# Ansible managed - do not edit manually
+
+# General settings
+daemon=yes
+guardian=yes
+setuid=pdns
+setgid=pdns
+
+# Network settings
+local-address={{ powerdns_listen_address }}
+local-port={{ powerdns_port }}
+
+
+{% if powerdns_backend == 'mysql' %}
+launch=gmysql
+gmysql-host=localhost
+gmysql-user={{ powerdns_db_user }}
+gmysql-password={{ powerdns_db_password }}
+gmysql-dbname={{ powerdns_db_name }}
+{% elif powerdns_backend == 'pgsql' %}
+launch=gpgsql
+gpgsql-host=localhost
+gpgsql-user={{ powerdns_db_user }}
+gpgsql-password={{ powerdns_db_password }}
+gpgsql-dbname={{ powerdns_db_name }}
+{% elif powerdns_backend == 'sqlite3' %}
+launch=gsqlite3
+gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+{% elif powerdns_backend == 'bind' %}
+bind-config=/etc/powerdns/bindbackend.conf
+bind-dnssec-db=/var/lib/powerdns/dnssec.db
+{% endif %}
+
+# Security
+allow-axfr-ips=127.0.0.1
+allow-dnsupdate-from=
+
+# Master/Slave settings
+#{% if powerdns_master %}
+# master=yes
+#{% endif %}
+
+{% if powerdns_slave %}
+slave=yes
+{% endif %}
+
+# API settings
+{% if powerdns_api %}
+api=yes
+api-key={{ powerdns_api_key }}
+webserver=yes
+webserver-address={{ powerdns_listen_address }}
+webserver-port=8081
+webserver-password={{ powerdns_api_key }}
+{% endif %}
+
+# Performance
+cache-ttl=20
+query-cache-ttl=20
+negquery-cache-ttl=60
+default-ttl=3600

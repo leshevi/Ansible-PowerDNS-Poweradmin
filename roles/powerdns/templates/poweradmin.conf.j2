@@ -1,0 +1,38 @@
+<VirtualHost *:80>
+    ServerAdmin webmaster@localhost
+    ServerName {{ powerdns_domain }}
+    DocumentRoot {{ powerdns_web_root }}
+
+    <Directory {{ powerdns_web_root }}>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+        
+        # Security settings
+        <IfModule mod_headers.c>
+            Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        </IfModule>
+    </Directory>
+    
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/poweradmin-error.log
+    CustomLog ${APACHE_LOG_DIR}/poweradmin-access.log combined
+    
+    # Performance
+    <IfModule mod_deflate.c>
+        AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript
+    </IfModule>
+    
+    # Cache static files
+    <FilesMatch "\.(ico|pdf|jpg|jpeg|png|gif|js|css|swf)$">
+        Header set Cache-Control "max-age=86400, public"
+    </FilesMatch>
+</VirtualHost>
+
+# Redirect to HTTPS if enabled
+{% if poweradmin_enable_https %}
+<VirtualHost *:80>
+    ServerName {{ powerdns_domain }}
+    Redirect permanent / https://{{ powerdns_domain }}/
+</VirtualHost>
+{% endif %}

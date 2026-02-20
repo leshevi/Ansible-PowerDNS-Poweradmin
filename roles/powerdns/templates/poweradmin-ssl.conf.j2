@@ -1,0 +1,36 @@
+<IfModule mod_ssl.c>
+<VirtualHost *:443>
+    ServerAdmin webmaster@localhost
+    ServerName {{ powerdns_domain }}
+    DocumentRoot {{ powerdns_web_root }}
+    
+    # SSL Configuration
+    SSLEngine on
+    SSLCertificateFile    /etc/ssl/certs/ssl-cert-snakeoil.pem
+    SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+    
+    # For Let's Encrypt certificates
+    # SSLCertificateFile    /etc/ssl/certs/poweradmin-selfsigned.crt
+    # SSLCertificateKeyFile /etc/ssl/private/poweradmin-selfsigned.key
+    
+    <Directory {{ powerdns_web_root }}>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+        
+        # Security headers for HTTPS
+        <IfModule mod_headers.c>
+            Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        </IfModule>
+    </Directory>
+    
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/poweradmin-ssl-error.log
+    CustomLog ${APACHE_LOG_DIR}/poweradmin-ssl-access.log combined
+    
+    # Performance
+    <IfModule mod_deflate.c>
+        AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript
+    </IfModule>
+</VirtualHost>
+</IfModule>
