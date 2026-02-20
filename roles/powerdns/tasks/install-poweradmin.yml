@@ -1,5 +1,4 @@
 ---
-
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
@@ -46,12 +45,6 @@
       - "php{{ poweradmin_php_version }}-zip"
       - "php{{ poweradmin_php_version }}-ldap"
     state: present
-
-- name: Install database server
-  ansible.builtin.apt:
-    name: "{{ poweradmin_db_server_packages[item] }}"
-    state: present
-  with_items: "{{ poweradmin_db_type }}"
 
 - name: Create web root directory
   ansible.builtin.file:
@@ -155,7 +148,7 @@
   ansible.builtin.include_tasks: configure_ssl.yml
   when: poweradmin_enable_https | bool
 
-- name: Wait 5 minutes
+- name: Wait 10 minutes
   ansible.builtin.pause:
     seconds: 600
 
