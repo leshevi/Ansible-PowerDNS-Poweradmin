@@ -34,7 +34,7 @@ image: $DEPENDENCY_IMAGE
   tags:
     - Docker
   variables:
-    SERVER_IPS: 192.168.1.33
+    SERVER_IPS: IP
     SERVER_NAMES: web-server
   script:
     - rm .gitlab-ci.yml
