@@ -1,0 +1,5 @@
+powerdns_backend_packages:
+  mysql: ['mariadb-server', 'mariadb-client', 'php-mysql']
+  pgsql: ['postgresql', 'postgresql-client', 'postgresql-contrib']
+  sqlite3: ['sqlite3']
+  bind: ['pdns-backend-bind']

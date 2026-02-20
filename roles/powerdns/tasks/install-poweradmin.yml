@@ -32,85 +32,85 @@
 - name: Installing PHP and extensions
   ansible.builtin.apt:
     name:
-      - "php{{ poweradmin_php_version }}"
-      - "php{{ poweradmin_php_version }}-curl"
-      - "php{{ poweradmin_php_version }}-gd"
-      - "php{{ poweradmin_php_version }}-intl"
-      - "php{{ poweradmin_php_version }}-mbstring"
-      - "php{{ poweradmin_php_version }}-gettext"
-      - "php{{ poweradmin_php_version }}-tokenizer"
-      - "php{{ poweradmin_php_version }}-mysql"
-      - "php{{ poweradmin_php_version }}-pgsql"
-      - "php{{ poweradmin_php_version }}-xml"
-      - "php{{ poweradmin_php_version }}-zip"
-      - "php{{ poweradmin_php_version }}-ldap"
+      - "php{{ powerdns_php_version }}"
+      - "php{{ powerdns_php_version }}-curl"
+      - "php{{ powerdns_php_version }}-gd"
+      - "php{{ powerdns_php_version }}-intl"
+      - "php{{ powerdns_php_version }}-mbstring"
+      - "php{{ powerdns_php_version }}-gettext"
+      - "php{{ powerdns_php_version }}-tokenizer"
+      - "php{{ powerdns_php_version }}-mysql"
+      - "php{{ powerdns_php_version }}-pgsql"
+      - "php{{ powerdns_php_version }}-xml"
+      - "php{{ powerdns_php_version }}-zip"
+      - "php{{ powerdns_php_version }}-ldap"
     state: present
 
 - name: Create web root directory
   ansible.builtin.file:
-    path: "{{ poweradmin_web_root }}"
+    path: "{{ powerdns_web_root }}"
     state: directory
-    owner: "{{ poweradmin_web_user }}"
-    group: "{{ poweradmin_web_group }}"
+    owner: "{{ powerdns_web_user }}"
+    group: "{{ powerdns_web_group }}"
     mode: '0755'
 
 - name: Download Poweradmin
   ansible.builtin.get_url:
-    url: "{{ poweradmin_download_url }}"
-    dest: "/tmp/poweradmin-{{ poweradmin_version }}.tar.gz"
+    url: "{{ powerdns_download_url }}"
+    dest: "/tmp/poweradmin-{{ powerdns_version }}.tar.gz"
     checksum: sha256:0ee88152841571b36fe9cd3365d7602f8192b52ce6f8fd06f0aa1b97f4e928ad
     mode: '0644'
 
 - name: Extract Poweradmin
   ansible.builtin.unarchive:
-    src: "/tmp/poweradmin-{{ poweradmin_version }}.tar.gz"
+    src: "/tmp/poweradmin-{{ powerdns_version }}.tar.gz"
     dest: "/tmp/"
     remote_src: true
-    creates: "/tmp/poweradmin-{{ poweradmin_version }}"
+    creates: "/tmp/poweradmin-{{ powerdns_version }}"
 
 - name: Copy Poweradmin files to web directory
   ansible.builtin.copy:
-    src: "/tmp/poweradmin-{{ poweradmin_version }}/"
-    dest: "{{ poweradmin_web_root }}"
+    src: "/tmp/poweradmin-{{ powerdns_version }}/"
+    dest: "{{ powerdns_web_root }}"
     remote_src: true
-    owner: "{{ poweradmin_web_user }}"
-    group: "{{ poweradmin_web_group }}"
+    owner: "{{ powerdns_web_user }}"
+    group: "{{ powerdns_web_group }}"
     mode: '0755'
 
 - name: Set permissions on Poweradmin directory
   ansible.builtin.file:
-    path: "{{ poweradmin_web_root }}"
+    path: "{{ powerdns_web_root }}"
     state: directory
     recurse: true
-    owner: "{{ poweradmin_web_user }}"
-    group: "{{ poweradmin_web_group }}"
+    owner: "{{ powerdns_web_user }}"
+    group: "{{ powerdns_web_group }}"
     mode: '0755'
 
 - name: Set permissions on specific directories
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
-    owner: "{{ poweradmin_web_user }}"
-    group: "{{ poweradmin_web_group }}"
+    owner: "{{ powerdns_web_user }}"
+    group: "{{ powerdns_web_group }}"
     mode: "{{ item.mode }}"
   loop:
-    - { path: "{{ poweradmin_web_root }}/install", mode: '0777' }
-    - { path: "{{ poweradmin_web_root }}/inc", mode: '0755' }
+    - { path: "{{ powerdns_web_root }}/install", mode: '0777' }
+    - { path: "{{ powerdns_web_root }}/inc", mode: '0755' }
 
 - name: Create configuration directory
   ansible.builtin.file:
-    path: "{{ poweradmin_web_root }}/inc"
+    path: "{{ powerdns_web_root }}/inc"
     state: directory
-    owner: "{{ poweradmin_web_user }}"
-    group: "{{ poweradmin_web_group }}"
+    owner: "{{ powerdns_web_user }}"
+    group: "{{ powerdns_web_group }}"
     mode: '0755'
 
 - name: Create htaccess file for security
   ansible.builtin.template:
     src: templates/htaccess.j2
-    dest: "{{ poweradmin_web_root }}/.htaccess"
-    owner: "{{ poweradmin_web_user }}"
-    group: "{{ poweradmin_web_group }}"
+    dest: "{{ powerdns_web_root }}/.htaccess"
+    owner: "{{ powerdns_web_user }}"
+    group: "{{ powerdns_web_group }}"
     mode: '0644'
 
 - name: Configure Apache virtual host
@@ -140,13 +140,13 @@
 - name: Disable default Apache site
   ansible.builtin.command:
     cmd: a2dissite 000-default.conf
-  when: poweradmin_enable_https | bool == "false"
+  when: powerdns_enable_https | bool == "false"
   notify: Reload apache2
   changed_when: false
 
 - name: Configure SSL (optional)
   ansible.builtin.include_tasks: configure_ssl.yml
-  when: poweradmin_enable_https | bool
+  when: powerdns_enable_https | bool
 
 - name: Wait 10 minutes
   ansible.builtin.pause:
@@ -154,10 +154,10 @@
 
 - name: Import Poweradmin PostgreSQL schema
   ansible.builtin.shell: |
-    psql -U {{ poweradmin_powerdns_db_user }} -d {{ poweradmin_powerdns_db_name }} \
-      < {{ poweradmin_web_root }}/sql/poweradmin-pgsql-db-structure.sql
+    psql -U {{ powerdns_db_user }} -d {{ powerdns_db_name }} \
+      < {{ powerdns_web_root }}/sql/poweradmin-pgsql-db-structure.sql
   environment:
-    PGPASSWORD: "{{ poweradmin_db_password }}"
+    PGPASSWORD: "{{ powerdns_db_password }}"
   vars:
     ansible_ssh_pipelining: true
   changed_when: false
