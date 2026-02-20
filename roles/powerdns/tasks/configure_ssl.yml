@@ -1,0 +1,83 @@
+---
+- name: Install SSL certificate packages
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-apache
+    state: present
+
+- name: Configure Apache SSL virtual host
+  ansible.builtin.template:
+    src: templates/poweradmin-ssl.conf.j2
+    dest: "/etc/apache2/sites-available/poweradmin-ssl.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload apache2
+
+- name: Enable SSL site
+  ansible.builtin.command:
+    cmd: a2ensite poweradmin-ssl.conf
+  notify: Reload apache2
+  changed_when: false
+
+- name: Enable SSL module
+  ansible.builtin.command:
+    cmd: a2enmod ssl
+  changed_when: false
+
+- name: Reload apache
+  ansible.builtin.service:
+    name: apache2
+    state: reloaded
+
+- name: Generate an OpenSSL private key
+  community.crypto.openssl_privatekey:
+    path: /etc/ssl/private/poweradmin-selfsigned.key
+    size: 2048
+
+- name: Generate an OpenSSL CSR for poweradmin
+  community.crypto.openssl_csr:
+    path: /etc/ssl/certs/poweradmin-selfsigned.csr # Ensure this path matches the error message
+    privatekey_path: /etc/ssl/private/poweradmin-selfsigned.key # Assuming a private key exists
+    common_name: "poweradmin.leshevi.ru"
+
+- name: Generate self-signed certificate (optional)
+  community.crypto.x509_certificate:
+    path: /etc/ssl/certs/poweradmin-selfsigned.crt
+    privatekey_path: /etc/ssl/private/poweradmin-selfsigned.key
+    csr_path: /etc/ssl/certs/poweradmin-selfsigned.csr
+    provider: selfsigned
+  when: poweradmin_generate_selfsigned | bool
+
+- name: Get Let's Encrypt certificate with Certbot
+  ansible.builtin.command: >
+    certbot --apache -d {{ poweradmin_domain }}
+    --non-interactive --agree-tos --email {{ poweradmin_admin_email }}
+    --redirect
+  when: poweradmin_domain is defined and not poweradmin_generate_selfsigned | bool
+  register: certbot_result
+  changed_when: "'Congratulations' in certbot_result.stdout"
+
+- name: Edit file poweradmin-ssl.conf
+  ansible.builtin.lineinfile:
+    path: /etc/apache2/sites-available/poweradmin-ssl.conf
+    regexp: '{{ item.r }}'
+    line: '{{ item.line }}'
+  loop:
+    - { r: "SSLEngine on", line: "# SSLEngine on" }
+    - { r: "SSLCertificateFile    /etc/ssl/certs/ssl-cert-snakeoil.pem", line: "# SSLCertificateFile    /etc/ssl/certs/ssl-cert-snakeoil.pem" }
+    - { r: "SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key", line: "# SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key" }
+    - { r: "# SSLCertificateFile    /etc/ssl/certs/poweradmin-selfsigned.crt", line: "    SSLCertificateFile /etc/ssl/certs/poweradmin-selfsigned.crt" }
+    - { r: "# SSLCertificateKeyFile /etc/ssl/private/poweradmin-selfsigned.key", line: "    SSLCertificateKeyFile /etc/ssl/private/poweradmin-selfsigned.key" }
+  notify: Reload apache2
+
+- name: Allow HTTP and HTTPS in firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "80"
+    - "443"
+    - "22"
