@@ -39,7 +39,7 @@ Options -Indexes
 </IfModule>
 
 # Restrict access by IP (if configured)
-{% if poweradmin_allowed_networks | length > 0 %}
+{% if powerdns_allowed_networks | length > 0 %}
 Order Deny,Allow
 Deny from all
 {% for network in powerdns_allowed_networks %}

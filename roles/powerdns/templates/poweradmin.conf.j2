@@ -30,7 +30,7 @@
 </VirtualHost>
 
 # Redirect to HTTPS if enabled
-{% if poweradmin_enable_https %}
+{% if powerdns_enable_https %}
 <VirtualHost *:80>
     ServerName {{ powerdns_domain }}
     Redirect permanent / https://{{ powerdns_domain }}/
