@@ -1,0 +1,39 @@
+---
+# Poweradmin settings
+powerdns_php_version: "8.2"
+powerdns_version: "3.9.8"
+powerdns_download_url: "https://github.com/poweradmin/poweradmin/archive/refs/tags/v{{ poweradmin_version }}.tar.gz"
+
+# Web server settings
+powerdns_web_user: "www-data"
+powerdns_web_group: "www-data"
+powerdns_web_root: "/var/www/html/poweradmin"
+
+# Database settings
+powerdns_db_type: "pgsql"
+powerdns_db_host: "localhost"
+powerdns_db_port: "5432"
+powerdns_db_name: "poweradns"
+powerdns_db_user: "poweradns"
+powerdns_db_password: "changeme123"
+
+# PowerDNS configuration
+powerdns_version: "4.7.3-2"
+powerdns_backend: "pgsql"  # Options: mysql, pgsql, sqlite3, bind
+
+# PowerDNS settings
+powerdns_recursor: false
+powerdns_api: false
+powerdns_api_key: "changeme456"
+powerdns_webserver: false
+
+# Network settings
+powerdns_listen_address: "0.0.0.0"
+powerdns_port: 53
+powerdns_master: false
+powerdns_slave: false
+
+# Network restrictions (optional)
+poweradmin_allowed_networks:
+  - "192.168.1.0/24"
+  - "10.0.0.0/8"

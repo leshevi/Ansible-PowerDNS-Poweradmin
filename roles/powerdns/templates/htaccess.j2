@@ -1,0 +1,48 @@
+# Poweradmin .htaccess
+# Security restrictions
+
+# Protect config file
+<Files "config.inc.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Protect SQL directory
+<FilesMatch "\.(sql)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Disable directory listing
+Options -Indexes
+
+# Enable URL rewriting
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirect to HTTPS if enabled
+    {% if poweradmin_enable_https %}
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+    {% endif %}
+    
+    # Block access to hidden files
+    RewriteRule ^\.git - [F,L]
+    RewriteRule ^\.svn - [F,L]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Restrict access by IP (if configured)
+{% if poweradmin_allowed_networks | length > 0 %}
+Order Deny,Allow
+Deny from all
+{% for network in poweradmin_allowed_networks %}
+Allow from {{ network }}
+{% endfor %}
+{% endif %}
