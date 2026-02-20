@@ -1,0 +1,7 @@
+---
+- name: Install and configure PowerDNS on Debian 12
+  hosts: all
+  become: true
+  roles:
+    - powerdns
+
