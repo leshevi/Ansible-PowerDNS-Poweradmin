@@ -1,0 +1,170 @@
+---
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - apache2
+      - libapache2-mod-php
+      - unzip
+      - software-properties-common
+      - ufw
+    state: present
+
+- name: Importing the GPG key for the PHP repository
+  ansible.builtin.apt_key:
+    url: "https://packages.sury.org/php/apt.gpg"
+    state: present
+
+- name: Adding a PHP repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://packages.sury.org/php/ {{ ansible_distribution_release }} main"
+    state: present
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Installing PHP and extensions
+  ansible.builtin.apt:
+    name:
+      - "php{{ poweradmin_php_version }}"
+      - "php{{ poweradmin_php_version }}-curl"
+      - "php{{ poweradmin_php_version }}-gd"
+      - "php{{ poweradmin_php_version }}-intl"
+      - "php{{ poweradmin_php_version }}-mbstring"
+      - "php{{ poweradmin_php_version }}-gettext"
+      - "php{{ poweradmin_php_version }}-tokenizer"
+      - "php{{ poweradmin_php_version }}-mysql"
+      - "php{{ poweradmin_php_version }}-pgsql"
+      - "php{{ poweradmin_php_version }}-xml"
+      - "php{{ poweradmin_php_version }}-zip"
+      - "php{{ poweradmin_php_version }}-ldap"
+    state: present
+
+- name: Install database server
+  ansible.builtin.apt:
+    name: "{{ poweradmin_db_server_packages[item] }}"
+    state: present
+  with_items: "{{ poweradmin_db_type }}"
+
+- name: Create web root directory
+  ansible.builtin.file:
+    path: "{{ poweradmin_web_root }}"
+    state: directory
+    owner: "{{ poweradmin_web_user }}"
+    group: "{{ poweradmin_web_group }}"
+    mode: '0755'
+
+- name: Download Poweradmin
+  ansible.builtin.get_url:
+    url: "{{ poweradmin_download_url }}"
+    dest: "/tmp/poweradmin-{{ poweradmin_version }}.tar.gz"
+    checksum: sha256:0ee88152841571b36fe9cd3365d7602f8192b52ce6f8fd06f0aa1b97f4e928ad
+    mode: '0644'
+
+- name: Extract Poweradmin
+  ansible.builtin.unarchive:
+    src: "/tmp/poweradmin-{{ poweradmin_version }}.tar.gz"
+    dest: "/tmp/"
+    remote_src: true
+    creates: "/tmp/poweradmin-{{ poweradmin_version }}"
+
+- name: Copy Poweradmin files to web directory
+  ansible.builtin.copy:
+    src: "/tmp/poweradmin-{{ poweradmin_version }}/"
+    dest: "{{ poweradmin_web_root }}"
+    remote_src: true
+    owner: "{{ poweradmin_web_user }}"
+    group: "{{ poweradmin_web_group }}"
+    mode: '0755'
+
+- name: Set permissions on Poweradmin directory
+  ansible.builtin.file:
+    path: "{{ poweradmin_web_root }}"
+    state: directory
+    recurse: true
+    owner: "{{ poweradmin_web_user }}"
+    group: "{{ poweradmin_web_group }}"
+    mode: '0755'
+
+- name: Set permissions on specific directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ poweradmin_web_user }}"
+    group: "{{ poweradmin_web_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ poweradmin_web_root }}/install", mode: '0777' }
+    - { path: "{{ poweradmin_web_root }}/inc", mode: '0755' }
+
+- name: Create configuration directory
+  ansible.builtin.file:
+    path: "{{ poweradmin_web_root }}/inc"
+    state: directory
+    owner: "{{ poweradmin_web_user }}"
+    group: "{{ poweradmin_web_group }}"
+    mode: '0755'
+
+- name: Create htaccess file for security
+  ansible.builtin.template:
+    src: templates/htaccess.j2
+    dest: "{{ poweradmin_web_root }}/.htaccess"
+    owner: "{{ poweradmin_web_user }}"
+    group: "{{ poweradmin_web_group }}"
+    mode: '0644'
+
+- name: Configure Apache virtual host
+  ansible.builtin.template:
+    src: templates/poweradmin.conf.j2
+    dest: "/etc/apache2/sites-available/poweradmin.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload apache2
+
+- name: Enable Apache modules
+  ansible.builtin.command:
+    cmd: "a2enmod {{ item }}"
+  loop:
+    - rewrite
+    - headers
+  notify: Reload apache2
+  changed_when: false
+
+- name: Enable Poweradmin site
+  ansible.builtin.command:
+    cmd: a2ensite poweradmin.conf
+  notify: Reload apache2
+  changed_when: false
+
+- name: Disable default Apache site
+  ansible.builtin.command:
+    cmd: a2dissite 000-default.conf
+  when: poweradmin_enable_https | bool == "false"
+  notify: Reload apache2
+  changed_when: false
+
+- name: Configure SSL (optional)
+  ansible.builtin.include_tasks: configure_ssl.yml
+  when: poweradmin_enable_https | bool
+
+- name: Wait 5 minutes
+  ansible.builtin.pause:
+    seconds: 600
+
+- name: Import Poweradmin PostgreSQL schema
+  ansible.builtin.shell: |
+    psql -U {{ poweradmin_powerdns_db_user }} -d {{ poweradmin_powerdns_db_name }} \
+      < {{ poweradmin_web_root }}/sql/poweradmin-pgsql-db-structure.sql
+  environment:
+    PGPASSWORD: "{{ poweradmin_db_password }}"
+  vars:
+    ansible_ssh_pipelining: true
+  changed_when: false
